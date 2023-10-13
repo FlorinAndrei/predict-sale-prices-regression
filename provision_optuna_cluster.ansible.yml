@@ -1,0 +1,89 @@
+- name: provision cluster
+  hosts: all
+
+  tasks:
+  - name: add python repo
+    ansible.builtin.apt_repository:
+      repo: ppa:deadsnakes/ppa
+      update_cache: yes
+    become: true
+
+  - name: update packages
+    ansible.builtin.apt:
+      upgrade: yes
+      update_cache: no
+    become: true
+
+  - name: install python 3.11
+    ansible.builtin.apt:
+      pkg:
+      - python3.11
+      - python3.11-dev
+    become: true
+
+  - name: install utilities
+    ansible.builtin.apt:
+      pkg:
+      - screen
+      - python3-pip
+      - htop
+      - build-essential
+      - libmysqlclient-dev
+      - pkg-config
+    become: true
+
+  - name: copy code files to cluster
+    ansible.builtin.copy:
+      src: "{{item}}"
+      dest: code/
+    with_items:
+    - main_notebook.ipynb
+    - pipeline_pandas_utils.py
+    - requirements.txt
+    - performance_files
+    - submission_files
+    - submission-100.csv
+
+  - name: configure htop
+    ansible.builtin.copy:
+      src: htoprc
+      dest: ~/.config/htop/
+
+  - name: copy dataset to cluster
+    ansible.builtin.copy:
+      src: ../input
+      dest: ~/
+
+  - name: install pip for python 3.11
+    ansible.builtin.shell:
+      cmd: python3.11 -m pip install --upgrade --user pip
+      creates: ~/.local/bin/pip3.11
+
+  - name: install helper python modules
+    ansible.builtin.pip:
+      name:
+      - wheel
+      - setuptools
+      executable: ~/.local/bin/pip3.11
+      extra_args: --user
+
+  - name: install python modules
+    ansible.builtin.pip:
+      requirements: ~/code/requirements.txt
+      executable: ~/.local/bin/pip3.11
+      extra_args: --user
+
+  - name: create run script
+    ansible.builtin.template:
+      src: run_headless.sh
+      dest: ~/code/run_headless.sh
+      mode: 0755
+    tags:
+      - "run_code"
+
+  - name: run code
+    ansible.builtin.shell:
+      cmd: screen -dm -S notebook ./run_headless.sh
+      chdir: code
+    tags:
+      - "run_code"

@@ -1,0 +1,5 @@
+StackingRegressor_Ridge        0.11854964144139617
+StackingRegressor_Lasso        0.11942221026912289
+StackingRegressor_ENet         0.11852654308298499
+StackingRegressor_KNN          0.12415051057307841
+StackingRegressor_MLPRegressor 0.1213023628997334

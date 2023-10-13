@@ -1,0 +1,64 @@
+- name: provision cluster
+  hosts: all
+
+  tasks:
+  - name: update packages
+    ansible.builtin.apt:
+      upgrade: yes
+      update_cache: yes
+    become: true
+
+  - name: install packages
+    ansible.builtin.apt:
+      pkg:
+      - screen
+      - htop
+      - python3-pip
+      - build-essential
+      - libmysqlclient-dev
+      - pkg-config
+      - mysql-server
+    become: true
+
+  - name: configure mysqld listener
+    ansible.builtin.lineinfile:
+      path: /etc/mysql/mysql.conf.d/mysqld.cnf
+      regexp: '^bind-address'
+      line: bind-address            = 0.0.0.0
+      state: present
+    register: my_cnf
+    become: yes
+
+  - name: restart mysqld
+    ansible.builtin.service:
+      name: mysql
+      state: restarted
+    when: my_cnf.changed
+    become: yes
+
+  - name: configure htop
+    ansible.builtin.copy:
+      src: htoprc
+      dest: ~/.config/htop/
+
+  - name: install helper python modules
+    ansible.builtin.pip:
+      name:
+      - mysqlclient
+      extra_args: --user
+    become: yes
+
+  - name: create optuna db
+    ansible.builtin.mysql_db:
+      name: "optuna"
+      state: "present"
+    become: yes
+
+  - name: create optuna db user
+    ansible.builtin.mysql_user:
+      name: "optuna"
+      host: "%"
+      password: "{{ lookup('env', 'OPTUNA_DB_PASS') }}"
+      priv: 'optuna.*:ALL'
+      state: "present"
+    become: yes
